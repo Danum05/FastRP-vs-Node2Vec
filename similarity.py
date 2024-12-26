@@ -47,7 +47,7 @@ try:
             '{graph_name}', 
             {{
                 nodeProperties: ['embedding'],
-                topK: 1,
+                topK: 5,
                 sampleRate: 1.0,
                 deltaThreshold: 0.001,
                 maxIterations: 10,
