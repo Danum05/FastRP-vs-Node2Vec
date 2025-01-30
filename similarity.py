@@ -3,86 +3,91 @@ import pandas as pd
 from py2neo import Graph
 import json
 
-# Logging Configuration
+# Konfigurasi logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Neo4j Connection
+# Menghubungkan ke database Neo4j
 graph = Graph("bolt://localhost:7687", auth=("neo4j", "211524037"))
 
 try:
-    # Check and drop existing graph projection if it exists
+    # Cek dan hapus graph projection yang sudah ada
     graph_name = "movieGraph"
-    logger.info(f"Checking if graph projection '{graph_name}' exists...")
+    logger.info(f"Memeriksa graph projection '{graph_name}'...")
+    
     exists_query = f"CALL gds.graph.exists('{graph_name}') YIELD exists"
     graph_exists = graph.run(exists_query).evaluate("exists")
     
     if graph_exists:
-        logger.info(f"Graph projection '{graph_name}' exists. Dropping it...")
-        graph.run(f"CALL gds.graph.drop('{graph_name}') YIELD graphName")
-        logger.info(f"Graph projection '{graph_name}' dropped successfully.")
-    else:
-        logger.info(f"No existing graph projection '{graph_name}' found.")
-
-    # Create new graph projection
-    timestamp = pd.Timestamp.now().strftime("%Y%m%d%H%M%S")
-    graph_name = f"movieGraph_{timestamp}"
-    logger.info(f"Creating graph projection: {graph_name}")
-
-    graph.run(f"""
-        CALL gds.graph.project(
-            '{graph_name}',
-            'Movie',
-            '*',
-            {{
-                nodeProperties: ['embedding']
-            }}
-        )
+        logger.info(f"Menghapus graph projection '{graph_name}' yang sudah ada...")
+        graph.run(f"CALL gds.graph.drop('{graph_name}')")
+        logger.info(f"Graph projection '{graph_name}' berhasil dihapus.")
+    
+    # Membuat graph projection baru untuk KNN
+    logger.info("Membuat graph projection baru...")
+    graph.run("""
+    CALL gds.graph.project(
+        'movieGraph',
+        'Movie',
+        '*',
+        {
+            nodeProperties: ['embedding']
+        }
+    )
     """)
+    logger.info("Graph projection baru berhasil dibuat.")
 
-    # Running KNN Algorithm
-    logger.info("Running KNN...")
-    graph.run(f"""
-        CALL gds.knn.write(
-            '{graph_name}', 
-            {{
-                nodeProperties: ['embedding'],
-                topK: 5,
-                sampleRate: 1.0,
-                deltaThreshold: 0.001,
-                maxIterations: 10,
-                writeRelationshipType: 'KNN',
-                writeProperty: 'score'
-            }}
-        )
+    # Menjalankan KNN
+    logger.info("Menjalankan KNN...")
+    graph.run("""
+    CALL gds.knn.write(
+      'movieGraph',
+      {
+        nodeProperties: ['embedding'],
+        topK: 5,
+        sampleRate: 1.0,
+        deltaThreshold: 0.001,
+        maxIterations: 10,
+        writeRelationshipType: 'KNN',
+        writeProperty: 'score'
+      }
+    )
     """)
+    logger.info("Proses KNN selesai.")
 
-    # Fetching KNN Results
-    logger.info("Retrieving KNN results...")
-    query = """ 
-    MATCH (n1:Movie {type: 'history'})-[r:KNN]->(n2:Movie {type: 'movie'}) 
+    # Mengambil hasil KNN dari Neo4j
+    logger.info("Mengambil hasil KNN dari Neo4j...")
+    query = """
+    MATCH (n1:Movie {type: 'history'})-[r:KNN]->(n2:Movie {type: 'movie'})
     RETURN 
         n1.id AS id1, 
-        n1.title AS title1, 
-        n1.type AS type1, 
-        n2.id AS id2, 
-        n2.title AS title2, 
-        n2.type AS type2, 
-        r.score AS similarity 
-    ORDER BY id1, similarity DESC 
+        n1.title AS title1,
+        n1.overview AS overview1,
+        n1.type AS type1,
+        n2.id AS id2,
+        n2.title AS title2,
+        n2.overview AS overview2,
+        n2.type AS type2,
+        r.score AS similarity,
+        [(n2)-[:HAS_GENRE]->(g) | g.name] AS genres,
+        [(n2)-[:FEATURES]->(a) | a.name] AS actors
+    ORDER BY id1, similarity DESC
     """
     knn_results = graph.run(query).data()
+    logger.info("Hasil KNN telah diambil.")
 
-    # Processing Results
+    # Mengkonversi hasil ke DataFrame dan normalisasi skor similarity
     df_knn = pd.DataFrame(knn_results)
-
+    
     if not df_knn.empty:
         df_knn['similarity'] = df_knn['similarity'].astype(float)
-        max_similarity = df_knn['similarity'].max() or 1
+        max_similarity = df_knn['similarity'].max()
         df_knn['similarity_normalized'] = df_knn['similarity'] / max_similarity
 
-        # Generating Recommendations
+        # Inisialisasi set untuk melacak ID film yang sudah digunakan
         used_ids = set()
+
+        # Menyiapkan data JSON
         json_data = []
         for _, group in df_knn.groupby('id1'):
             filtered_group = []
@@ -92,21 +97,30 @@ try:
                     filtered_group.append({
                         "id": row["id2"],
                         "title": row["title2"],
+                        "overview": row["overview2"],
                         "type": row["type2"],
-                        "similarity_score": row["similarity_normalized"]
+                        "similarity_score": float(row["similarity_normalized"])
                     })
-                if len(filtered_group) == 1:
+                if len(filtered_group) == 5:  
                     break
             if filtered_group:
                 json_data.extend(filtered_group)
 
-        # Saving Results
+        # Menyimpan hasil ke file JSON
         with open("Rekomendasi.json", "w", encoding='utf-8') as file:
             json.dump(json_data, file, indent=4, ensure_ascii=False)
 
-        logger.info("Recommendations saved successfully")
+        logger.info("Hasil KNN 5 teratas berhasil disimpan ke file Rekomendasi.json")
     else:
-        logger.warning("No KNN results found")
+        logger.warning("Tidak ada hasil KNN yang ditemukan")
 
 except Exception as e:
-    logger.error(f"Error: {e}")
+    logger.error(f"Terjadi error: {e}", exc_info=True)
+finally:
+    # Membersihkan graph projection
+    try:
+        graph.run("CALL gds.graph.exists('movieGraph') YIELD exists")
+        graph.run("CALL gds.graph.drop('movieGraph')")
+        logger.info("Graph projection dibersihkan")
+    except Exception as e:
+        logger.error(f"Error saat membersihkan graph projection: {e}")

@@ -54,98 +54,138 @@ def create_dataframe(data):
     df = pd.DataFrame.from_dict(data)
     return df[["title", "genre", "overview", "actors"]]
 
-# Load data
-file_path_movies = 'movie.json'  # Update with your movie JSON file path
-file_path_history = 'history.json'  # Update with your history JSON file path
-
-data_movies = load_data_from_json(file_path_movies)
-data_history = load_data_from_json(file_path_history)
-
-# Create DataFrames
-df_movies = create_dataframe(data_movies)
-df_history = create_dataframe(data_history)
-
-# Add 'type' column to distinguish between movies and history
-df_movies["type"] = "movie"
-df_history["type"] = "history"
-
-# Ensure IDs are unique (use index or create custom IDs)
-df_movies["id"] = df_movies.index + 1  # Start ID from 1
-df_history["id"] = df_history.index + len(df_movies) + 1  # Continue IDs after movies
-
-# Combine DataFrames
-df_combined = pd.concat([df_movies, df_history])
-
-# Ensure no null values in 'id' column
-if df_combined["id"].isnull().any():
-    logger.error("The 'id' column contains null values. Ensure it is properly filled.")
-else:
-    logger.info("'id' column is properly filled.")
-
-# Preprocess 'overview' column
-df_combined["processed_overview"] = df_combined["overview"].apply(preprocess_text)
-
-# Debugging preprocessed text
-for index, text in enumerate(df_combined["overview"][:5]):  # Check the first 5 entries
-    logger.info(f"Original overview {index}: {text}")
-    logger.info(f"Processed overview {index}: {preprocess_text(text)}")
-
-# TF-IDF Vectorization on processed text
-tfidf_vectorizer = TfidfVectorizer(max_features=10)
-tfidf_matrix = tfidf_vectorizer.fit_transform(df_combined["processed_overview"])
-tfidf_feature_names = tfidf_vectorizer.get_feature_names_out()
-
-# Convert TF-IDF matrix to DataFrame for visualization
-df_tfidf = pd.DataFrame(tfidf_matrix.toarray(), columns=tfidf_feature_names, index=df_combined["id"])
-
-# Display TF-IDF DataFrame
-logger.info(f"TF-IDF Data:\n{df_tfidf}")
+# Function to create TF-IDF embedding
+def create_tfidf_embedding(data, type_name):
+    
+    vectorizer = TfidfVectorizer(
+        max_features=10,
+        stop_words='english',
+        ngram_range=(1, 1)
+    )
+    
+    # Fit and transform data
+    tfidf_matrix = vectorizer.fit_transform(data["processed_overview"])
+    feature_names = vectorizer.get_feature_names_out()
+    
+    # Create DataFrame for visualization
+    df_tfidf = pd.DataFrame(
+        tfidf_matrix.toarray(),
+        columns=feature_names,
+        index=data["id"]
+    )
+    
+    # Save to CSV for analysis
+    output_file = f'TF-IDF_{type_name}.csv'
+    df_tfidf.to_csv(output_file, index=True)
+    
+    return tfidf_matrix, feature_names, vectorizer
 
 # Function to save data to Neo4j
-def save_to_neo4j(df, tfidf_matrix, tfidf_feature_names):
+def save_to_neo4j(df, tfidf_matrix, feature_names, movie_type):
+    
     for index, row in df.iterrows():
-        tfidf_row = tfidf_matrix[index].toarray()[0].tolist()
-
-        # Create a movie node with embedding field and type
-        movie_node = Node("Movie", id=row["id"], title=row["title"], overview=row["overview"],
-                          processed_overview=row["processed_overview"], embedding=tfidf_row, type=row["type"])
+        # Get index position in tfidf_matrix
+        matrix_index = df.index.get_loc(row.name)
+        tfidf_row = tfidf_matrix[matrix_index].toarray()[0]
+        
+        # Create node with appropriate properties
+        movie_node = Node(
+            "Movie",
+            id=row["id"],
+            title=row["title"],
+            overview=row["overview"],
+            processed_overview=row["processed_overview"],
+            embedding=tfidf_row.tolist(),
+            type=movie_type
+        )
+        
+        # Merge node to database
         graph.merge(movie_node, "Movie", "id")
-
-        # Iterate over genres
+        
+        # Process genres
         for genre in row["genre"]:
             genre_node = Node("Genre", name=genre)
             graph.merge(genre_node, "Genre", "name")
-            genre_rel = Relationship(movie_node, "HAS_GENRE", genre_node)
-            graph.merge(genre_rel)
-
-        # Iterate over actors
+            rel = Relationship(movie_node, "HAS_GENRE", genre_node)
+            graph.merge(rel)
+        
+        # Process actors
         for actor in row["actors"]:
             actor_node = Node("Actor", name=actor)
             graph.merge(actor_node, "Actor", "name")
-            actor_rel = Relationship(movie_node, "FEATURES", actor_node)
-            graph.merge(actor_rel)
-
-        # Iterate over TF-IDF features
-        for i, feature in enumerate(tfidf_feature_names):
+            rel = Relationship(movie_node, "FEATURES", actor_node)
+            graph.merge(rel)
+        
+        # Process TF-IDF features
+        for i, feature in enumerate(feature_names):
             weight = float(tfidf_row[i])
             if weight > 0:
                 tag_node = Node("Tag", name=feature)
                 graph.merge(tag_node, "Tag", "name")
                 
-                # Create bidirectional TAGGED relationships
-                tagged_rel_forward = Relationship(movie_node, "TAGGED", tag_node, weight=weight)
-                graph.merge(tagged_rel_forward)
-                
-                tagged_rel_backward = Relationship(tag_node, "TAGGED", movie_node, weight=weight)
-                graph.merge(tagged_rel_backward)
+                rel = Relationship(
+                    movie_node, 
+                    "TAGGED", 
+                    tag_node, 
+                    weight=weight,
+                    movie_type=movie_type
+                )
+                graph.merge(rel)
 
-# Save data to Neo4j with TF-IDF weights
-save_to_neo4j(df_combined, tfidf_matrix, tfidf_feature_names)
+def main():
+    # Load data
+    file_path_movies = 'movie.json'
+    file_path_history = 'history.json'
 
-# Save combined DataFrame to JSON file
-output_file_path = 'processed_movie_data.json'  # Update with your desired path
-df_combined.to_json(output_file_path, orient='records', force_ascii=False)
+    data_movies = load_data_from_json(file_path_movies)
+    data_history = load_data_from_json(file_path_history)
 
-# Save TF-IDF DataFrame to CSV file
-output_file_path = 'TF-IDF_movie.csv' 
-df_tfidf.to_csv(output_file_path, index=True, encoding='utf-8')
+    # Create DataFrames
+    df_movies = create_dataframe(data_movies)
+    df_history = create_dataframe(data_history)
+
+    # Add 'type' column
+    df_movies["type"] = "movie"
+    df_history["type"] = "history"
+
+    # Create unique IDs
+    df_movies["id"] = df_movies.index + 1
+    df_history["id"] = df_history.index + len(df_movies) + 1
+
+    # Combine DataFrames
+    df_combined = pd.concat([df_movies, df_history])
+
+    # Check for null IDs
+    if df_combined["id"].isnull().any():
+        logger.error("The 'id' column contains null values")
+        return
+
+    # Preprocess overview text
+    df_combined["processed_overview"] = df_combined["overview"].apply(preprocess_text)
+
+    # Split data by type
+    movies_data = df_combined[df_combined['type'] == 'movie']
+    history_data = df_combined[df_combined['type'] == 'history']
+
+    # Process movies and history separately
+    movie_tfidf, movie_features, movie_vectorizer = create_tfidf_embedding(movies_data, "movies")
+    history_tfidf, history_features, history_vectorizer = create_tfidf_embedding(history_data, "history")
+
+    # Convert TF-IDF matrix to DataFrame for visualization
+    movie_tfidf_df = pd.DataFrame(movie_tfidf.toarray(), columns=movie_features, index=movies_data["id"])
+    history_tfidf_df = pd.DataFrame(history_tfidf.toarray(), columns=history_features, index=history_data["id"])
+
+    # Display TF-IDF DataFrame in log
+    logger.info(f"TF-IDF Data Movie:\n{movie_tfidf_df}")
+    logger.info(f"TF-IDF Data History:\n{history_tfidf_df}")
+
+    # Save to Neo4j
+    save_to_neo4j(movies_data, movie_tfidf, movie_features, "movie")
+    save_to_neo4j(history_data, history_tfidf, history_features, "history")
+
+    # Save combined DataFrame to JSON
+    output_json = 'processed_movie_data.json'
+    df_combined.to_json(output_json, orient='records', force_ascii=False)
+
+if __name__ == "__main__":
+    main()
