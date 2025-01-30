@@ -14,15 +14,15 @@ try:
     # Cek dan hapus graph projection yang sudah ada
     graph_name = "movieGraph"
     logger.info(f"Memeriksa graph projection '{graph_name}'...")
-    
+
     exists_query = f"CALL gds.graph.exists('{graph_name}') YIELD exists"
     graph_exists = graph.run(exists_query).evaluate("exists")
-    
+
     if graph_exists:
         logger.info(f"Menghapus graph projection '{graph_name}' yang sudah ada...")
         graph.run(f"CALL gds.graph.drop('{graph_name}')")
         logger.info(f"Graph projection '{graph_name}' berhasil dihapus.")
-    
+
     # Membuat graph projection baru untuk KNN
     logger.info("Membuat graph projection baru...")
     graph.run("""
@@ -71,15 +71,23 @@ try:
         r.score AS similarity,
         [(n2)-[:HAS_GENRE]->(g) | g.name] AS genres,
         [(n2)-[:FEATURES]->(a) | a.name] AS actors
-    ORDER BY id1, similarity DESC
+    ORDER BY r.score DESC
     """
     knn_results = graph.run(query).data()
     logger.info("Hasil KNN telah diambil.")
 
-    # Mengkonversi hasil ke DataFrame dan normalisasi skor similarity
-    df_knn = pd.DataFrame(knn_results)
-    
-    if not df_knn.empty:
+    # Menyaring hasil KNN agar hanya yang memiliki skor lebih besar dari 0 yang disimpan
+    filtered_results = [result for result in knn_results if result['similarity'] > 0]
+
+    if filtered_results:
+        # Mengkonversi hasil ke DataFrame dan melihat nilai similarity asli
+        df_knn = pd.DataFrame(filtered_results)
+        
+        # Periksa nilai asli similarity sebelum normalisasi
+        logger.info("Nilai similarity yang diambil dari Neo4j:")
+        logger.info(df_knn[['id1', 'id2', 'similarity']])
+
+        # Normalisasi similarity berdasarkan nilai tertinggi
         df_knn['similarity'] = df_knn['similarity'].astype(float)
         max_similarity = df_knn['similarity'].max()
         df_knn['similarity_normalized'] = df_knn['similarity'] / max_similarity
@@ -87,7 +95,7 @@ try:
         # Inisialisasi set untuk melacak ID film yang sudah digunakan
         used_ids = set()
 
-        # Menyiapkan data JSON
+        # Menyiapkan data JSON tanpa normalisasi
         json_data = []
         for _, group in df_knn.groupby('id1'):
             filtered_group = []
@@ -99,9 +107,9 @@ try:
                         "title": row["title2"],
                         "overview": row["overview2"],
                         "type": row["type2"],
-                        "similarity_score": float(row["similarity_normalized"])
+                        "similarity_score": float(row["similarity"])  # Menggunakan nilai asli similarity
                     })
-                if len(filtered_group) == 5:  
+                if len(filtered_group) == 5:  # Membatasi 5 rekomendasi teratas
                     break
             if filtered_group:
                 json_data.extend(filtered_group)
@@ -110,9 +118,10 @@ try:
         with open("Rekomendasi.json", "w", encoding='utf-8') as file:
             json.dump(json_data, file, indent=4, ensure_ascii=False)
 
+
         logger.info("Hasil KNN 5 teratas berhasil disimpan ke file Rekomendasi.json")
     else:
-        logger.warning("Tidak ada hasil KNN yang ditemukan")
+        logger.warning("Tidak ada hasil KNN dengan skor similarity > 0")
 
 except Exception as e:
     logger.error(f"Terjadi error: {e}", exc_info=True)
