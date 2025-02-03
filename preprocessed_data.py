@@ -3,10 +3,11 @@ import logging
 from py2neo import Graph, Node, Relationship
 import pandas as pd
 from bs4 import BeautifulSoup
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sentence_transformers import SentenceTransformer
 from nltk.corpus import stopwords
 import nltk
 import json
+import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -54,32 +55,29 @@ def create_dataframe(data):
     df = pd.DataFrame.from_dict(data)
     return df[["title", "genre", "overview", "actors"]]
 
-# Function to create TF-IDF embedding
-def create_tfidf_embedding(data):
-    vectorizer = TfidfVectorizer(
-        max_features=10,
-        stop_words='english',
-        ngram_range=(1, 1)
-    )
+# Function to create sentence embeddings
+def create_sentence_embeddings(data):
+    # Initialize the model (you can choose different models)
+    model = SentenceTransformer('all-MiniLM-L6-v2')
     
-    tfidf_matrix = vectorizer.fit_transform(data["processed_overview"])
-    feature_names = vectorizer.get_feature_names_out()
+    # Generate embeddings
+    embeddings = model.encode(data["processed_overview"].tolist(), 
+                            show_progress_bar=True, 
+                            batch_size=32)
     
-    df_tfidf = pd.DataFrame(
-        tfidf_matrix.toarray(),
-        columns=feature_names,
+    # Save embeddings to CSV
+    df_embeddings = pd.DataFrame(
+        embeddings,
         index=data.index
     )
+    df_embeddings.to_csv('sentence_embeddings.csv', index=True)
     
-    df_tfidf.to_csv('TF-IDF_combined.csv', index=True)
-    
-    return tfidf_matrix, feature_names, vectorizer
+    return embeddings
 
 # Function to save data to Neo4j
-def save_to_neo4j(df, tfidf_matrix, feature_names):
+def save_to_neo4j(df, embeddings):
     for idx, row in df.iterrows():
-        matrix_index = df.index.get_loc(idx)
-        tfidf_row = tfidf_matrix[matrix_index].toarray()[0]
+        embedding_vector = embeddings[idx]
         
         movie_node = Node(
             "Movie",
@@ -87,7 +85,7 @@ def save_to_neo4j(df, tfidf_matrix, feature_names):
             title=row["title"],
             overview=row["overview"],
             processed_overview=row["processed_overview"],
-            embedding=json.dumps(tfidf_row.tolist()),
+            embedding=json.dumps(embedding_vector.tolist()),
             type=row["type"]
         )
         graph.merge(movie_node, "Movie", "id")
@@ -101,13 +99,6 @@ def save_to_neo4j(df, tfidf_matrix, feature_names):
             actor_node = Node("Actor", name=actor)
             graph.merge(actor_node, "Actor", "name")
             graph.merge(Relationship(movie_node, "FEATURES", actor_node))
-        
-        for i, feature in enumerate(feature_names):
-            weight = float(tfidf_row[i])
-            if weight > 0:
-                tag_node = Node("Tag", name=feature)
-                graph.merge(tag_node, "Tag", "name")
-                graph.merge(Relationship(movie_node, "TAGGED", tag_node, weight=weight))
 
 def main():
     file_path_movies = 'movie.json'
@@ -133,11 +124,11 @@ def main():
 
     df_combined["processed_overview"] = df_combined["overview"].apply(preprocess_text)
 
-    tfidf_matrix, feature_names, vectorizer = create_tfidf_embedding(df_combined)
+    embeddings = create_sentence_embeddings(df_combined)
 
-    logger.info(f"TF-IDF Data:\n{pd.DataFrame(tfidf_matrix.toarray(), columns=feature_names, index=df_combined.index)}")
+    logger.info(f"Generated embeddings shape: {embeddings.shape}")
 
-    save_to_neo4j(df_combined, tfidf_matrix, feature_names)
+    save_to_neo4j(df_combined, embeddings)
     
     df_combined.to_json('processed_movie_data.json', orient='records', force_ascii=False)
 
