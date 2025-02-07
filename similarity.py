@@ -11,6 +11,14 @@ logger = logging.getLogger(__name__)
 graph = Graph("bolt://localhost:7687", auth=("neo4j", "211524037"))
 
 try:
+    # Konversi embedding dari JSON string ke list menggunakan APOC
+    logger.info("Mengonversi properti 'embedding' dari JSON string ke list...")
+    graph.run("""
+        MATCH (m:Movie)
+        SET m.embedding = apoc.convert.fromJsonList(m.embedding)
+    """)
+    logger.info("Konversi embedding selesai.")
+
     # Cek dan hapus graph projection yang sudah ada
     graph_name = "movieGraph"
     logger.info(f"Memeriksa graph projection '{graph_name}'...")
@@ -31,7 +39,7 @@ try:
         'Movie',
         '*',
         {
-            nodeProperties: ['embedding']
+            nodeProperties: ['embedding', 'fastrp_embedding']
         }
     )
     """)
@@ -43,7 +51,7 @@ try:
     CALL gds.knn.write(
       'movieGraph',
       {
-        nodeProperties: ['embedding'],
+        nodeProperties: ['embedding', 'fastrp_embedding'],
         topK: 5,
         sampleRate: 1.0,
         deltaThreshold: 0.001,
