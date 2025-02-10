@@ -14,8 +14,8 @@ try:
     # Konversi embedding dari JSON string ke list menggunakan APOC
     logger.info("Mengonversi properti 'embedding' dari JSON string ke list...")
     graph.run("""
-        MATCH (m:Movie)
-        SET m.embedding = apoc.convert.fromJsonList(m.embedding)
+        MATCH (n:Movie)
+        SET n.embedding = apoc.convert.fromJsonList(n.embedding)
     """)
     logger.info("Konversi embedding selesai.")
 
@@ -45,7 +45,7 @@ try:
     """)
     logger.info("Graph projection baru berhasil dibuat.")
 
-    # Menjalankan KNN
+    # Menjalankan KNN 
     logger.info("Menjalankan KNN...")
     graph.run("""
     CALL gds.knn.write(
@@ -57,14 +57,15 @@ try:
         deltaThreshold: 0.001,
         maxIterations: 10,
         writeRelationshipType: 'KNN',
-        writeProperty: 'score'
+        writeProperty: 'score',
+        concurrency: 4
       }
     )
     """)
     logger.info("Proses KNN selesai.")
 
-    # Mengambil hasil KNN dari Neo4j
-    logger.info("Mengambil hasil KNN dari Neo4j...")
+    # Mengambil hasil KNN dan menerapkan pembobotan manual dengan weight
+    logger.info("Mengambil dan membobot hasil KNN dari Neo4j...")
     query = """
     MATCH (n1:Movie {type: 'history'})-[r:KNN]->(n2:Movie {type: 'movie'})
     RETURN 
@@ -76,13 +77,14 @@ try:
         n2.title AS title2,
         n2.overview AS overview2,
         n2.type AS type2,
-        r.score AS similarity,
+        gds.similarity.cosine(n1.embedding, n2.embedding) * 0.3 + 
+        gds.similarity.cosine(n1.fastrp_embedding, n2.fastrp_embedding) * 0.7 AS similarity,
         [(n2)-[:HAS_GENRE]->(g) | g.name] AS genres,
         [(n2)-[:FEATURES]->(a) | a.name] AS actors
-    ORDER BY r.score DESC
+    ORDER BY similarity DESC
     """
     knn_results = graph.run(query).data()
-    logger.info("Hasil KNN telah diambil.")
+    logger.info("Hasil KNN telah diambil dan dibobot.")
 
     # Menyaring hasil KNN agar hanya yang memiliki skor lebih besar dari 0 yang disimpan
     filtered_results = [result for result in knn_results if result['similarity'] > 0]
@@ -115,7 +117,7 @@ try:
                         "title": row["title2"],
                         "overview": row["overview2"],
                         "type": row["type2"],
-                        "similarity_score": float(row["similarity"])  # Menggunakan nilai asli similarity
+                        "similarity_score": float(row["similarity"])
                     })
                 if len(filtered_group) == 5:  # Membatasi 5 rekomendasi teratas
                     break
@@ -125,7 +127,6 @@ try:
         # Menyimpan hasil ke file JSON
         with open("Rekomendasi.json", "w", encoding='utf-8') as file:
             json.dump(json_data, file, indent=4, ensure_ascii=False)
-
 
         logger.info("Hasil KNN 5 teratas berhasil disimpan ke file Rekomendasi.json")
     else:
