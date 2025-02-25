@@ -1,114 +1,27 @@
 [
     {
-        "title": "Creed III",
-        "date_x": "03/02/2023 ",
-        "score": "73.0",
-        "genre": [
-            "Drama",
-            "Action"
-        ],
-        "overview": "After dominating the boxing world, Adonis Creed has been thriving in both his career and family life. When a childhood friend and former boxing prodigy, Damien Anderson, resurfaces after serving a long sentence in prison, he is eager to prove that he deserves his shot in the ring. The face-off between former friends is more than just a fight. To settle the score, Adonis must put his future on the line to battle Damien — a fighter who has nothing to lose.",
-        "actors": [
-            "Michael B. Jordan",
-            "Adonis Creed",
-            "Tessa Thompson",
-            "Bianca Taylor",
-            "Jonathan Majors",
-            "Damien Anderson",
-            "Wood Harris",
-            "Tony 'Little Duke' Evers",
-            "Phylicia Rashād",
-            "Mary Anne Creed",
-            "Mila Davis-Kent",
-            "Amara Creed",
-            "Florian Munteanu",
-            "Viktor Drago",
-            "José Benavidez Jr.",
-            "Felix Chavez",
-            "Selenis Leyva",
-            "Laura Chavez"
-        ],
-        "orig_title": "Creed III",
-        "status": " Released",
-        "orig_lang": " English",
-        "budget_x": "75000000.0",
-        "revenue": "271616668.0",
-        "country": "AU"
+        "title": "Batman",
+        "genre": ["Action"],
+        "overview": "Former Gotham City District Attorney Harvey Dent, one side of his face scarred by acid, goes on a crime spree based on the number '2'. All of his actions are decided by the flip of a defaced, two-headed silver dollar.",
+        "actors": ["Gian"]
     },
     {
-        "title": "Avatar: The Way of Water",
-        "date_x": "12/15/2022 ",
-        "score": "78.0",
-        "genre": [
-            "Science Fiction",
-            "Adventure",
-            "Action"
-        ],
-        "overview": "Set more than a decade after the events of the first film, learn the story of the Sully family (Jake, Neytiri, and their kids), the trouble that follows them, the lengths they go to keep each other safe, the battles they fight to stay alive, and the tragedies they endure.",
-        "actors": [
-            "Sam Worthington",
-            "Jake Sully",
-            "Zoe Saldaña",
-            "Neytiri",
-            "Sigourney Weaver",
-            "Kiri / Dr. Grace Augustine",
-            "Stephen Lang",
-            "Colonel Miles Quaritch",
-            "Kate Winslet",
-            "Ronal",
-            "Cliff Curtis",
-            "Tonowari",
-            "Joel David Moore",
-            "Norm Spellman",
-            "CCH Pounder",
-            "Mo'at",
-            "Edie Falco",
-            "General Frances Ardmore"
-        ],
-        "orig_title": "Avatar: The Way of Water",
-        "status": " Released",
-        "orig_lang": " English",
-        "budget_x": "460000000.0",
-        "revenue": "2316794914.0",
-        "country": "AU"
+        "title": "Superman",
+        "genre": ["Drama"],
+        "overview": "When a ghost-infecting virus known as Fire-Starter begins spreading through the system resulting in the assassination of the Japanese Prime Minister, Major Motoko Kusanagi and her elite team of special operatives are called in to track down its source.",
+        "actors": ["Regi"]
     },
     {
-        "title": "The Super Mario Bros. Movie",
-        "date_x": "04/05/2023 ",
-        "score": "76.0",
-        "genre": [
-            "Animation",
-            "Adventure",
-            "Family",
-            "Fantasy",
-            "Comedy"
-        ],
-        "overview": "While working underground to fix a water main, Brooklyn plumbers—and brothers—Mario and Luigi are transported down a mysterious pipe and wander into a magical new world. But when the brothers are separated, Mario embarks on an epic quest to find Luigi.",
-        "actors": [
-            "Chris Pratt",
-            "Mario (voice)",
-            "Anya Taylor-Joy",
-            "Princess Peach (voice)",
-            "Charlie Day",
-            "Luigi (voice)",
-            "Jack Black",
-            "Bowser (voice)",
-            "Keegan-Michael Key",
-            "Toad (voice)",
-            "Seth Rogen",
-            "Donkey Kong (voice)",
-            "Fred Armisen",
-            "Cranky Kong (voice)",
-            "Kevin Michael Richardson",
-            "Kamek (voice)",
-            "Sebastian Maniscalco",
-            "Spike (voice)"
-        ],
-        "orig_title": "The Super Mario Bros. Movie",
-        "status": " Released",
-        "orig_lang": " English",
-        "budget_x": "100000000.0",
-        "revenue": "724459031.0",
-        "country": "AU"
+        "title": "Preman Pensiun",
+        "genre": ["Action"],
+        "overview": "Kang Mus is a boss of terminal and market now he is retirement and give a business to Subordinate",
+        "actors": ["Kang Mus"]
+    },
+    {
+        "title": "Preman Pensiun 3",
+        "genre": ["Drama"],
+        "overview": "Kang Mus now is succes from selling kicimpring and now he expand his business",
+        "actors": ["Kang Mus"]
     }
 ]
+    

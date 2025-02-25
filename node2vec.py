@@ -43,11 +43,11 @@ def run_node2vec_process(graph):
     result = graph.run("""
         CALL gds.beta.node2vec.stream('movieGraph', {
             embeddingDimension: 256,
-            walkLength: 80,
-            iterations: 10,
-            inOutFactor: 1.0,
-            returnFactor: 2.0,
-            randomSeed: 42
+            randomSeed: 42,
+            iterations: 10,           
+            walkLength: 80,          
+            returnFactor: 0.01,       
+            inOutFactor: 10.0   
         })
         YIELD nodeId, embedding
         WITH nodeId, embedding

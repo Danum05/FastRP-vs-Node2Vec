@@ -1,23 +1,30 @@
 [
     {
         "id": 1,
-        "title": "Creed III",
-        "overview": "After dominating the boxing world, Adonis Creed has been thriving in both his career and family life. When a childhood friend and former boxing prodigy, Damien Anderson, resurfaces after serving a long sentence in prison, he is eager to prove that he deserves his shot in the ring. The face-off between former friends is more than just a fight. To settle the score, Adonis must put his future on the line to battle Damien — a fighter who has nothing to lose.",
+        "title": "Batman",
+        "overview": "Former Gotham City District Attorney Harvey Dent, one side of his face scarred by acid, goes on a crime spree based on the number '2'. All of his actions are decided by the flip of a defaced, two-headed silver dollar.",
         "type": "movie",
-        "similarity_score": 0.23109628253199765
-    },
-    {
-        "id": 2,
-        "title": "Avatar: The Way of Water",
-        "overview": "Set more than a decade after the events of the first film, learn the story of the Sully family (Jake, Neytiri, and their kids), the trouble that follows them, the lengths they go to keep each other safe, the battles they fight to stay alive, and the tragedies they endure.",
-        "type": "movie",
-        "similarity_score": 0.21427077023722277
+        "similarity_score": 1.0
     },
     {
         "id": 3,
-        "title": "The Super Mario Bros. Movie",
-        "overview": "While working underground to fix a water main, Brooklyn plumbers—and brothers—Mario and Luigi are transported down a mysterious pipe and wander into a magical new world. But when the brothers are separated, Mario embarks on an epic quest to find Luigi.",
+        "title": "Preman Pensiun",
+        "overview": "Kang Mus is a boss of terminal and market now he is retirement and give a business to Subordinate",
         "type": "movie",
-        "similarity_score": 0.20225965540689306
+        "similarity_score": 0.728788534938609
+    },
+    {
+        "id": 4,
+        "title": "Preman Pensiun 3",
+        "overview": "Kang Mus now is succes from selling kicimpring and now he expand his business",
+        "type": "movie",
+        "similarity_score": 0.7267674664569341
+    },
+    {
+        "id": 2,
+        "title": "Superman",
+        "overview": "When a ghost-infecting virus known as Fire-Starter begins spreading through the system resulting in the assassination of the Japanese Prime Minister, Major Motoko Kusanagi and her elite team of special operatives are called in to track down its source.",
+        "type": "movie",
+        "similarity_score": 0.7161745783284144
     }
 ]

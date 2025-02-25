@@ -42,11 +42,11 @@ def run_fastrp_process(graph):
     logger.info("Menjalankan FastRP...")
     result = graph.run("""
         CALL gds.fastRP.stream('movieGraph', {
-            embeddingDimension: 256,
+            embeddingDimension: 2,
             iterationWeights: [0.0, 1.0, 10.0],
             propertyRatio: 0.0,
             normalizationStrength: 0.8,
-            randomSeed: 42
+            randomSeed: 1
         })
         YIELD nodeId, embedding
         WITH nodeId, embedding
