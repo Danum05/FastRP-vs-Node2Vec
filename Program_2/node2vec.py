@@ -21,19 +21,16 @@ def run_node2vec_process(graph):
         logger.info("Menghapus graf 'movieGraph' yang sudah ada...")
         graph.run("""CALL gds.graph.drop('movieGraph', false) YIELD graphName""")
     
-    # Membuat graf baru tanpa properties
+    # Membuat graf baru dengan semua node (Movie, Genre, Actor, Overview)
     logger.info("Membuat graf baru...")
     graph.run("""
         CALL gds.graph.project(
             'movieGraph',
-            ['Movie', 'Genre', 'Actor'],
+            ['Movie', 'Genre', 'Actor', 'Overview'],
             {
-                HAS_GENRE: {
-                    orientation: 'UNDIRECTED'
-                },
-                FEATURES: {
-                    orientation: 'UNDIRECTED'
-                }
+                HAS_GENRE: { orientation: 'UNDIRECTED' },
+                FEATURES: { orientation: 'UNDIRECTED' },
+                HAS_OVERVIEW: { orientation: 'UNDIRECTED' }
             }
         )
     """)
@@ -51,11 +48,11 @@ def run_node2vec_process(graph):
         })
         YIELD nodeId, embedding
         WITH nodeId, embedding
-        MATCH (n) WHERE id(n) = nodeId AND (n:Movie OR n:Genre OR n:Actor)
+        MATCH (n) WHERE id(n) = nodeId
         RETURN n.id AS id, embedding, labels(n)[0] as label
     """).data()
 
-    # Periksa hasil dan normalisasi embedding
+    # Periksa hasil dan simpan embedding ke Neo4j
     embeddings_list = []
     for record in result:
         if record['embedding'] is None:
@@ -70,7 +67,7 @@ def run_node2vec_process(graph):
             continue
 
         try:
-            # Normalisasi embedding dengan penanganan error
+            # Normalisasi embedding
             norm = np.linalg.norm(embedding)
             if norm > 0:
                 normalized_embedding = embedding / norm
@@ -78,20 +75,20 @@ def run_node2vec_process(graph):
                 logger.warning(f"Norm adalah 0 untuk node ID {record['id']}.")
                 continue
 
-            # Menyimpan hasil embedding berdasarkan tipe node
-            if record['label'] == 'Movie':
-                graph.run("""
-                    MATCH (n:Movie {id: $id}) 
-                    SET n.fastrp_embedding = $embedding
-                """, id=record['id'], embedding=normalized_embedding.tolist())
-                
-                embeddings_list.append({
-                    'id': record['id'],
-                    'embedding': normalized_embedding.tolist(),
-                    'type': 'Movie'
-                })
-                
-            logger.info(f"Berhasil memproses {record['label']} ID: {record['id']}")
+            # Menentukan label node dan menyimpan embedding ke dalam Neo4j
+            label = record['label']
+            graph.run(f"""
+                MATCH (n:{label} {{id: $id}}) 
+                SET n.fastrp_embedding = $embedding
+            """, id=record['id'], embedding=normalized_embedding.tolist())
+
+            embeddings_list.append({
+                'id': record['id'],
+                'embedding': normalized_embedding.tolist(),
+                'type': label
+            })
+
+            logger.info(f"Berhasil menyimpan embedding untuk {label} ID: {record['id']}")
 
         except Exception as e:
             logger.error(f"Error saat memproses node ID {record['id']}: {str(e)}")
@@ -102,7 +99,7 @@ def run_node2vec_process(graph):
         df_embeddings = pd.DataFrame(embeddings_list)
         df_embeddings.to_csv("Node2Vec_embeddings.csv", index=False)
         logger.info("Embeddings berhasil disimpan ke file 'Node2Vec_embeddings.csv'.")
-        
+
         # Menghitung statistik embedding
         embeddings_array = np.array([e['embedding'] for e in embeddings_list])
         logger.info(f"Statistik embedding:")

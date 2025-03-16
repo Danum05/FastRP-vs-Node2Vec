@@ -3,11 +3,9 @@ import logging
 from py2neo import Graph, Node, Relationship
 import pandas as pd
 from bs4 import BeautifulSoup
-from sentence_transformers import SentenceTransformer
 from nltk.corpus import stopwords
 import nltk
 import json
-import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -15,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Download stopwords for NLTK
 nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
 
 # Connect to Neo4j
 graph = Graph("bolt://localhost:7687", auth=("neo4j", "211524037"))
@@ -37,9 +36,7 @@ def case_folding(text):
     text = re.sub(r"\d+", "", text)     # Remove digits
     return text
 
-# Function to remove stopwords using NLTK
-stop_words = set(stopwords.words('english'))
-
+# Function to remove stopwords
 def remove_stopwords(text):
     return " ".join([word for word in text.split() if word not in stop_words])
 
@@ -55,46 +52,35 @@ def create_dataframe(data):
     df = pd.DataFrame.from_dict(data)
     return df[["title", "genre", "overview", "actors"]]
 
-# Function to create sentence embeddings
-def create_sentence_embeddings(data):
-    # Initialize the model (you can choose different models)
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    
-    # Generate embeddings
-    embeddings = model.encode(data["processed_overview"].tolist(), 
-                            show_progress_bar=True, 
-                            batch_size=32)
-    
-    # Save embeddings to CSV
-    df_embeddings = pd.DataFrame(
-        embeddings,
-        index=data.index
-    )
-    df_embeddings.to_csv('sentence_embeddings.csv', index=True)
-    
-    return embeddings
-
 # Function to save data to Neo4j
-def save_to_neo4j(df, embeddings):
+def save_to_neo4j(df):
     for idx, row in df.iterrows():
-        embedding_vector = embeddings[idx]
+        # Preprocess overview text
+        cleaned_overview = preprocess_text(row["overview"])
         
+        # Create Movie node
         movie_node = Node(
             "Movie",
             id=int(row["id"]),
             title=row["title"],
-            overview=row["overview"],
-            processed_overview=row["processed_overview"],
-            embedding=json.dumps(embedding_vector.tolist()),
             type=row["type"]
         )
         graph.merge(movie_node, "Movie", "id")
         
+        # Create Overview node
+        overview_node = Node("Overview", text=cleaned_overview)
+        graph.merge(overview_node, "Overview", "text")
+        
+        # Create relationship HAS_OVERVIEW
+        graph.merge(Relationship(movie_node, "HAS_OVERVIEW", overview_node))
+        
+        # Create Genre nodes and relationships
         for genre in row["genre"]:
             genre_node = Node("Genre", name=genre)
             graph.merge(genre_node, "Genre", "name")
             graph.merge(Relationship(movie_node, "HAS_GENRE", genre_node))
         
+        # Create Actor nodes and relationships
         for actor in row["actors"]:
             actor_node = Node("Actor", name=actor)
             graph.merge(actor_node, "Actor", "name")
@@ -122,13 +108,7 @@ def main():
         logger.error("The 'id' column contains null values")
         return
 
-    df_combined["processed_overview"] = df_combined["overview"].apply(preprocess_text)
-
-    embeddings = create_sentence_embeddings(df_combined)
-
-    logger.info(f"Generated embeddings shape: {embeddings.shape}")
-
-    save_to_neo4j(df_combined, embeddings)
+    save_to_neo4j(df_combined)
     
     df_combined.to_json('processed_movie_data.json', orient='records', force_ascii=False)
 
