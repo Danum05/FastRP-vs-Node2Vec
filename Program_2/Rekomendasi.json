@@ -1,0 +1,23 @@
+[
+    {
+        "id": 1,
+        "title": "Batman",
+        "overview": "Former Gotham City District Attorney Harvey Dent, one side of his face scarred by acid, goes on a crime spree based on the number '2'. All of his actions are decided by the flip of a defaced, two-headed silver dollar.",
+        "type": "movie",
+        "similarity_score": 1.0
+    },
+    {
+        "id": 2,
+        "title": "Superman",
+        "overview": "When a ghost-infecting virus known as Fire-Starter begins spreading through the system resulting in the assassination of the Japanese Prime Minister, Major Motoko Kusanagi and her elite team of special operatives are called in to track down its source.",
+        "type": "movie",
+        "similarity_score": 0.6779260343647406
+    },
+    {
+        "id": 3,
+        "title": "Avatar",
+        "overview": "When a ghost-infecting virus known as Fire-Starter begins spreading through the system resulting in the assassination of the Japanese Prime Minister, Major Motoko Kusanagi and her elite team of special operatives are called in to track down its source.",
+        "type": "movie",
+        "similarity_score": 0.6053987924936135
+    }
+]

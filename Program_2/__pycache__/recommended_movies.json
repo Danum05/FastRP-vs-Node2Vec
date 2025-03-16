@@ -1,0 +1,32 @@
+[
+    {
+        "name": "Splatter: Naked Blood",
+        "overview": "A scientist taints his mother's scientific experiment with his own drug that transforms pain into a pleasurable experience. Unfortunately for the three women involved in the experiment, the drug works a little bit too well.",
+        "genre": "Science Fiction,\u00a0Horror",
+        "relevan": 1.0
+    },
+    {
+        "name": "Rings",
+        "overview": "Julia becomes worried about her boyfriend Holt when he explores the dark urban legend of a mysterious videotape said to kill the watcher seven days after viewing. She sacrifices herself to save her boyfriend and in doing so makes a horrifying discovery: there is a \"movie within the movie\" that no one has ever seen before.",
+        "genre": "Horror",
+        "relevan": 0.71
+    },
+    {
+        "name": "Spirit Halloween: The Movie",
+        "overview": "A group of middle schoolers discover a Spirit Halloween store is haunted and must survive the night.",
+        "genre": "Fantasy,\u00a0Family,\u00a0Horror,\u00a0Adventure",
+        "relevan": 0.53
+    },
+    {
+        "name": "Ghost in the Shell: The New Movie",
+        "overview": "When a ghost-infecting virus known as Fire-Starter begins spreading through the system resulting in the assassination of the Japanese Prime Minister, Major Motoko Kusanagi and her elite team of special operatives are called in to track down its source.",
+        "genre": "Science Fiction,\u00a0Animation",
+        "relevan": 0.5
+    },
+    {
+        "name": "13 Exorcisms",
+        "overview": "After participating in a s\u00e9ance, young Laura begins to behave strangely. Alarmed, her parents ask Father Olmedo, one of the few exorcists authorized by the Vatican to intervene in cases of demonic possession, for help.",
+        "genre": "Drama,\u00a0Horror",
+        "relevan": 0.5
+    }
+]

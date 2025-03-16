@@ -1,0 +1,54 @@
+[
+    {
+        "title": "Batman vs. Two-Face",
+        "date_x": "10/08/2017 ",
+        "score": "64.0",
+        "genre": [
+            "Action",
+            "Animation",
+            "Comedy"
+        ],
+        "overview": "Former Gotham City District Attorney Harvey Dent, one side of his face scarred by acid, goes on a crime spree based on the number '2'. All of his actions are decided by the flip of a defaced, two-headed silver dollar.",
+        "actors": [
+            "Adam West",
+            "Bruce Wayne / Batman (voice)",
+            "Burt Ward",
+            "Dick Grayson / Robin (voice)",
+            "William Shatner",
+            "Harvey Dent / Two-Face (voice)",
+            "Julie Newmar",
+            "Catwoman (voice)",
+            "Jeff Bergman",
+            "Joker / Bookworm / Desmond Dumas (voice)",
+            "Sirena Irwin",
+            "Harleen Quinzel (voice)",
+            "Thomas Lennon",
+            "Chief O'Hara (voice)",
+            "Lee Meriwether",
+            "Lucilee Diamond (voice)",
+            "William Salyers",
+            "Penguin (voice)"
+        ],
+        "orig_title": "Batman vs. Two-Face",
+        "status": " Released",
+        "orig_lang": " English",
+        "budget_x": "99700000.0",
+        "revenue": "288791629.6",
+        "country": "US"
+    },
+    {
+        "title": "Ghost in the Shell: The New Movie",
+        "date_x": "11/26/2015 ",
+        "score": 67,
+        "genre": "Science Fiction, Animation",
+        "overview": "When a ghost-infecting virus known as Fire-Starter begins spreading through the system resulting in the assassination of the Japanese Prime Minister, Major Motoko Kusanagi and her elite team of special operatives are called in to track down its source.",
+        "actors": "Maaya Sakamoto, Motoko Kusanagi (voice), Kenichirou Matsuda, Batou (voice), Kazuya Nakai, Borma (voice), Ikkyu Juku, Daisuke Aramaki (voice), Kenji Nojima, Tsumugi (voice), Mayumi Asano, Kurutsu (voice), Megumi Han, Chris (voice), Miyuki Sawashiro, Logicoma (voice), Mugihito, Robert Lee (voice)",
+        "orig_title": " 攻殻機動隊 新劇場版",
+        "status": " Released",
+        "orig_lang": " Japanese",
+        "budget_x": 4301620,
+        "revenue": 101203,
+        "country": "AU"
+    }
+]
+    
