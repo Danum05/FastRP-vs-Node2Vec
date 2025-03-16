@@ -4,20 +4,20 @@
         "title": "Batman",
         "overview": null,
         "type": "movie",
-        "similarity_score": 1.0
+        "similarity_score": 0.9997396034639902
     },
     {
         "id": 3,
         "title": "Avatar",
         "overview": null,
         "type": "movie",
-        "similarity_score": 0.7641543137331294
+        "similarity_score": 0.3654344552786761
     },
     {
         "id": 2,
         "title": "Superman",
         "overview": null,
         "type": "movie",
-        "similarity_score": 0.7383421982925575
+        "similarity_score": 0.1601814619156482
     }
 ]

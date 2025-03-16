@@ -4,31 +4,30 @@ from py2neo import Graph
 import json
 
 # Konfigurasi logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Menghubungkan ke database Neo4j
-graph = Graph("bolt://localhost:7687", auth=("neo4j", "211524037"))
+# Koneksi ke database Neo4j
+try:
+    logger.info("Menghubungkan ke database Neo4j...")
+    graph = Graph("bolt://localhost:7687", auth=("neo4j", "211524037"))
+    logger.info("Koneksi ke Neo4j berhasil.")
+except Exception as e:
+    logger.error(f"Gagal terhubung ke Neo4j: {e}")
+    exit(1)  # Keluar dari program jika koneksi gagal
 
 try:
-    # Konversi embedding dari JSON string ke list menggunakan APOC
-    logger.info("Mengonversi properti 'embedding' dari JSON string ke list...")
-    graph.run("""
-        MATCH (n:Movie)
-        SET n.embedding = apoc.convert.fromJsonList(n.embedding)
-    """)
-    logger.info("Konversi embedding selesai.")
+    # Langsung melewatkan langkah konversi embedding
+    logger.info("Melewatkan langkah konversi embedding karena sudah dalam format yang benar...")
 
-    # Cek dan hapus graph projection yang sudah ada
+    # Cek dan hapus graph projection jika sudah ada
     graph_name = "movieGraph"
-    logger.info(f"Memeriksa graph projection '{graph_name}'...")
-
-    exists_query = f"CALL gds.graph.exists('{graph_name}') YIELD exists"
-    graph_exists = graph.run(exists_query).evaluate("exists")
+    logger.info(f"Memeriksa apakah graph projection '{graph_name}' sudah ada...")
+    graph_exists = graph.run("CALL gds.graph.exists($graphName) YIELD exists", graphName=graph_name).evaluate("exists")
 
     if graph_exists:
         logger.info(f"Menghapus graph projection '{graph_name}' yang sudah ada...")
-        graph.run(f"CALL gds.graph.drop('{graph_name}')")
+        graph.run("CALL gds.graph.drop($graphName)", graphName=graph_name)
         logger.info(f"Graph projection '{graph_name}' berhasil dihapus.")
 
     # Membuat graph projection baru untuk KNN
@@ -38,20 +37,18 @@ try:
         'movieGraph',
         'Movie',
         '*',
-        {
-            nodeProperties: ['embedding', 'fastrp_embedding']
-        }
+        { nodeProperties: ['fastrp_embedding'] }
     )
     """)
     logger.info("Graph projection baru berhasil dibuat.")
 
-    # Menjalankan KNN 
+    # Menjalankan KNN dengan 'fastrp_embedding'
     logger.info("Menjalankan KNN...")
     graph.run("""
     CALL gds.knn.write(
       'movieGraph',
       {
-        nodeProperties: ['embedding', 'fastrp_embedding'],
+        nodeProperties: ['fastrp_embedding'],
         topK: 5,
         sampleRate: 1.0,
         deltaThreshold: 0.001,
@@ -64,8 +61,8 @@ try:
     """)
     logger.info("Proses KNN selesai.")
 
-    # Mengambil hasil KNN dan menerapkan pembobotan manual dengan weight
-    logger.info("Mengambil dan membobot hasil KNN dari Neo4j...")
+    # Mengambil hasil KNN berdasarkan history
+    logger.info("Mengambil hasil KNN dari Neo4j...")
     query = """
     MATCH (n1:Movie {type: 'history'})-[r:KNN]->(n2:Movie {type: 'movie'})
     RETURN 
@@ -77,22 +74,20 @@ try:
         n2.title AS title2,
         n2.overview AS overview2,
         n2.type AS type2,
-        gds.similarity.cosine(n1.embedding, n2.embedding) * 0.3 + 
-        gds.similarity.cosine(n1.fastrp_embedding, n2.fastrp_embedding) * 0.7 AS similarity,
+        gds.similarity.cosine(n1.fastrp_embedding, n2.fastrp_embedding) AS similarity,
         [(n2)-[:HAS_GENRE]->(g) | g.name] AS genres,
         [(n2)-[:FEATURES]->(a) | a.name] AS actors
     ORDER BY similarity DESC
     """
     knn_results = graph.run(query).data()
-    logger.info("Hasil KNN telah diambil dan dibobot.")
+    logger.info(f"Jumlah hasil KNN: {len(knn_results)}")
 
-    # Menyaring hasil KNN agar hanya yang memiliki skor lebih besar dari 0 yang disimpan
-    filtered_results = [result for result in knn_results if result['similarity'] > 0]
+    # Menyaring hasil KNN agar hanya yang memiliki skor similarity > 0 yang disimpan
+    filtered_results = [result for result in knn_results if result['similarity'] is not None and result['similarity'] > 0]
 
     if filtered_results:
-        # Mengkonversi hasil ke DataFrame dan melihat nilai similarity asli
         df_knn = pd.DataFrame(filtered_results)
-        
+
         # Periksa nilai asli similarity sebelum normalisasi
         logger.info("Nilai similarity yang diambil dari Neo4j:")
         logger.info(df_knn[['id1', 'id2', 'similarity']])
@@ -100,45 +95,48 @@ try:
         # Normalisasi similarity berdasarkan nilai tertinggi
         df_knn['similarity'] = df_knn['similarity'].astype(float)
         max_similarity = df_knn['similarity'].max()
-        df_knn['similarity_normalized'] = df_knn['similarity'] / max_similarity
+        df_knn['similarity_normalized'] = df_knn['similarity'] / max_similarity if max_similarity > 0 else 0
 
         # Inisialisasi set untuk melacak ID film yang sudah digunakan
         used_ids = set()
 
-        # Menyiapkan data JSON tanpa normalisasi
+        # Menyiapkan data JSON tanpa duplikasi
         json_data = []
         for _, group in df_knn.groupby('id1'):
-            filtered_group = []
+            recommendations = []
             for _, row in group.iterrows():
                 if row['id2'] not in used_ids and row['type2'] == 'movie':
                     used_ids.add(row['id2'])
-                    filtered_group.append({
+                    recommendations.append({
                         "id": row["id2"],
                         "title": row["title2"],
                         "overview": row["overview2"],
                         "type": row["type2"],
                         "similarity_score": float(row["similarity"])
                     })
-                if len(filtered_group) == 5:  # Membatasi 5 rekomendasi teratas
+                if len(recommendations) == 5:  # Batasi 5 rekomendasi per history
                     break
-            if filtered_group:
-                json_data.extend(filtered_group)
+            if recommendations:
+                json_data.extend(recommendations)
 
         # Menyimpan hasil ke file JSON
-        with open("Rekomendasi.json", "w", encoding='utf-8') as file:
+        output_file = "Rekomendasi.json"
+        with open(output_file, "w", encoding='utf-8') as file:
             json.dump(json_data, file, indent=4, ensure_ascii=False)
 
-        logger.info("Hasil KNN 5 teratas berhasil disimpan ke file Rekomendasi.json")
+        logger.info(f"Hasil KNN 5 teratas berhasil disimpan ke file {output_file}")
     else:
-        logger.warning("Tidak ada hasil KNN dengan skor similarity > 0")
+        logger.warning("Tidak ada hasil KNN dengan skor similarity > 0.")
 
 except Exception as e:
     logger.error(f"Terjadi error: {e}", exc_info=True)
+
 finally:
-    # Membersihkan graph projection
+    # Membersihkan graph projection jika masih ada
     try:
-        graph.run("CALL gds.graph.exists('movieGraph') YIELD exists")
-        graph.run("CALL gds.graph.drop('movieGraph')")
-        logger.info("Graph projection dibersihkan")
+        exists = graph.run("CALL gds.graph.exists($graphName) YIELD exists", graphName="movieGraph").evaluate("exists")
+        if exists:
+            graph.run("CALL gds.graph.drop($graphName)", graphName="movieGraph")
+            logger.info("Graph projection berhasil dibersihkan.")
     except Exception as e:
         logger.error(f"Error saat membersihkan graph projection: {e}")
